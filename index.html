@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Tycoon - Jupiter System v12.2 (Market Dynamics)</title>
+    <style>
+        /* CSS unchanged - except added player inventory style, crafting styles, and crafting button */
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000005; color: #e0e0e0; overflow: hidden; }
+        #scene-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        canvas { display: block; }
+        .ui-panel { position: absolute; background-color: rgba(30, 30, 50, 0.85); border: 1px solid #404070; border-radius: 5px; padding: 10px; box-shadow: 0 0 10px rgba(100, 100, 200, 0.3); z-index: 2; min-width: 180px; color: #e0e0e0;}
+        .ui-panel::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient( 0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 3px ); pointer-events: none; opacity: 0.5; z-index: -1; }
+        #header { top: 10px; left: 10px; font-size: 1.5em; font-weight: bold; color: #a0a0ff; }
+        #status-panel { bottom: 10px; left: 10px; min-width: 220px; /* Wider for inventory */}
+        #selected-object-panel { bottom: 10px; right: 10px; display: none; }
+        #poi-menu-panel { bottom: 10px; right: 10px; display: none; min-width: 250px; }
+        #poi-menu-panel .section { margin-top: 15px; padding-top: 5px; border-top: 1px solid #404070; }
+        #poi-menu-panel h4 { margin-bottom: 5px; color: #d0d0ff; }
+        #poi-menu-panel p { margin: 2px 0; font-size: 0.9em; }
+        #poi-menu-panel button, #selected-object-panel button, .system-action-button { margin-top: 5px; padding: 3px 8px; background-color: #404070; color: #e0e0ff; border: 1px solid #606090; border-radius: 3px; cursor: pointer; }
+        #poi-menu-panel button:hover, #selected-object-panel button:hover, .system-action-button:hover { background-color: #505080; }
+        h3 { margin-top: 0; margin-bottom: 5px; color: #c0c0ff; border-bottom: 1px solid #404070; padding-bottom: 3px; }
+        .instructions { position: absolute; top: 10px; right: 10px; background-color: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 3px; font-size: 0.8em; z-index: 3; color: #ccc;}
+
+        .nametag { color: #cccccc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 10px; padding: 1px 4px; background-color: rgba(0, 0, 10, 0.6); border-radius: 2px; border: 1px solid rgba(100, 100, 150, 0.5); white-space: nowrap; pointer-events: none; user-select: none; transform: translateX(-50%); }
+        .poi-nametag { font-size: 8px; background-color: rgba(10, 10, 10, 0.7); border: 1px solid rgba(80, 120, 80, 0.6); color: #bbffbb; }
+        #css2d-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
+
+        /* Trading Menu Styles */
+        #trading-menu-panel { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 750px; max-height: 80vh; overflow-y: auto; display: none; z-index: 10; }
+        #trading-menu-table th, #trading-menu-table td { padding: 6px 8px; border-bottom: 1px solid #404060; font-size: 0.9em; vertical-align: middle; }
+        #trading-menu-table th { background-color: rgba(40, 40, 80, 0.5); color: #c0c0ff; font-weight: bold; }
+        #trading-menu-table tbody tr:hover { background-color: rgba(60, 60, 90, 0.6); }
+        #trading-menu-table input[type="number"] { width: 60px; background-color: #101020; color: #e0e0ff; border: 1px solid #505080; border-radius: 2px; padding: 2px 4px; margin-right: 5px; }
+        #trading-menu-table button { padding: 3px 7px; font-size: 0.85em; color: #e0e0ff; border: 1px solid #709070; cursor: pointer; margin: 0 2px; border-radius: 3px; }
+        #trading-menu-table button:disabled { background-color: #444; border-color: #666; color: #888; cursor: not-allowed; }
+        .buy-button { background-color: #507050; border-color: #709070; color: #d0ffd0;}
+        .buy-button:hover:enabled { background-color: #608060;}
+        .sell-button { background-color: #705050; border-color: #907070; color: #ffd0d0;}
+        .sell-button:hover:enabled { background-color: #806060;}
+        #close-trading-menu, #close-crafting-menu { background-color: #704040; color: #ffc0c0; border: 1px solid #906060; padding: 2px 6px; font-size: 0.9em; cursor: pointer; margin-left: 10px; }
+        #close-trading-menu:hover, #close-crafting-menu:hover { background-color: #805050; }
+
+         /* Player Inventory in Status Panel */
+        #player-inventory {
+            margin-top: 8px;
+            padding-top: 5px;
+            border-top: 1px dashed #404070;
+            font-size: 0.85em;
+            max-height: 60px; /* Limit height */
+            overflow-y: auto; /* Add scroll if needed */
+        }
+        #player-inventory div { margin-bottom: 2px; }
+        #player-inventory span { color: #aaaaff; font-weight: bold; margin-right: 5px;}
+
+        /* Crafting Menu Styles */
+        #crafting-menu-panel { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 650px; max-height: 85vh; overflow-y: auto; display: none; z-index: 11; /* Higher z-index */ }
+        #crafting-menu-content { padding: 10px; }
+        .crafting-recipe {
+            background-color: rgba(40, 40, 60, 0.7);
+            border: 1px solid #505080;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+        }
+        .crafting-recipe h4 { color: #dadaff; margin: 0 0 5px 0; font-size: 1.1em; }
+        .crafting-recipe .description { font-size: 0.85em; color: #b0b0c0; margin-bottom: 8px; font-style: italic; }
+        .crafting-recipe .ingredients { font-size: 0.9em; margin-bottom: 8px; }
+        .crafting-recipe .ingredients strong { color: #c0c0ff; }
+        .crafting-recipe .ingredient-item { margin-left: 15px; display: block; }
+        .crafting-recipe .ingredient-item .have { color: #aaffaa; }
+        .crafting-recipe .ingredient-item .need { color: #ffaaaa; }
+        .crafting-recipe .craft-button {
+            padding: 4px 10px; background-color: #407040; color: #c0ffc0; border: 1px solid #609060; border-radius: 3px; cursor: pointer; float: right; /* Position button */
+        }
+        .crafting-recipe .craft-button:hover:enabled { background-color: #508050; }
+        .crafting-recipe .craft-button:disabled { background-color: #444; border-color: #666; color: #888; cursor: not-allowed; }
+        .crafting-clear { clear: both; } /* To clear float */
+
+        /* Crafting Button in Status Panel */
+        #open-crafting-menu-btn { display: none; /* Hidden by default */ margin-top: 8px; background-color: #406070; border-color: #608090; color: #c0e0ff; }
+        #open-crafting-menu-btn:hover { background-color: #507080; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div id="scene-container"></div>
+    <div id="css2d-container"></div>
+    <div id="header" class="ui-panel">Cosmic Tycoon</div>
+    <div id="status-panel" class="ui-panel">
+        <h3>Status</h3>
+        <div id="credits-status">Credits: 10,000 C</div>
+        <div id="date-status">Date: 2242.01.01</div>
+        <div id="view-status">View: System (Jupiter)</div>
+        <div id="player-inventory">
+            <h4>Cargo Hold</h4>
+            <div id="inventory-list">Empty</div>
+        </div>
+        <button id="open-crafting-menu-btn" class="system-action-button">⚙️ Open Crafting</button>
+    </div>
+    <div id="selected-object-panel" class="ui-panel"><h3>Selection</h3><div id="selected-name">Name: ---</div><div id="selected-info">Info: ---</div></div>
+    <div id="poi-menu-panel" class="ui-panel"><h3 id="poi-name">POI: ---</h3><div class="section"><h4>Trading</h4><p id="poi-trading-info">Access parent market.</p><button id="poi-open-market-btn">Open Parent Market</button></div><div class="section"><h4>Resources</h4><p id="poi-resources-info">Scan required.</p><button>Initiate Scan</button></div></div>
+    <div class="instructions">L-Drag: Orbit | Scroll: Zoom | R-Drag: Pan | WASD: Pan | DblClick: Focus | ESC: Back/Close Menu</div>
+
+    <div id="trading-menu-panel" class="ui-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #404070; padding-bottom: 5px; margin-bottom: 10px;">
+            <h3 id="trading-menu-title" style="margin: 0; border: none;">Market: ---</h3>
+            <button id="close-trading-menu">X</button>
+        </div>
+        <p id="trading-menu-description" style="font-style: italic; margin-bottom: 15px; font-size: 0.9em;"></p>
+        <table id="trading-menu-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align: left;">Company</th>
+                    <th style="text-align: left;">Resource</th>
+                    <th style="text-align: center;">Type</th> {/* Buy/Sell */}
+                    <th style="text-align: right;">Stock/Demand (kg)</th>
+                    <th style="text-align: right;">Price (C/kg)</th>
+                    <th style="text-align: center;">Quantity</th>
+                    <th style="text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="trading-menu-tbody">
+                <!-- Rows will be added here -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="crafting-menu-panel" class="ui-panel">
+         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #404070; padding-bottom: 5px; margin-bottom: 10px;">
+            <h3 id="crafting-menu-title" style="margin: 0; border: none;">⚙️ Crafting Schematics</h3>
+            <button id="close-crafting-menu">X</button>
+        </div>
+        <div id="crafting-menu-content">
+            <!-- Recipes will be added here by JS -->
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
