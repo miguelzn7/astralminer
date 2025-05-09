@@ -15,8 +15,7 @@ AstralMiner is a 3D space-based economic simulation and trading game prototype, 
 - [Controls](#controls)
 - [Project Structure](#project-structure)
 - [Future Ideas / To-Do](#future-ideas--to-do)
-- [Contributing (Optional)](#contributing-optional)
-- [License (Optional)](#license-optional)
+
 
 ## Features
 
